@@ -524,13 +524,6 @@
                     }
                     throw error;
                 }
-            }zureSpeechAPI();
-                } catch (error) {
-                    this.showError(`処理中にエラーが発生しました: ${error.message}`);
-                } finally {
-                    this.loading.style.display = 'none';
-                    this.processBtn.disabled = false;
-                }
             }
 
             async simulateAzureSpeechAPI() {
