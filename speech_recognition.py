@@ -5,7 +5,8 @@ def recognize_from_microphone():
      # This example requires environment variables named "SPEECH_KEY" and "ENDPOINT"
      # Replace with your own subscription key and endpoint, the endpoint is like : "https://YourServiceRegion.api.cognitive.microsoft.com"
     speech_config = speechsdk.SpeechConfig(subscription=os.environ.get('SPEECH_KEY'), endpoint=os.environ.get('ENDPOINT'))
-    speech_config.speech_recognition_language="en-US"
+    # Set the recognition language to Japanese
+    speech_config.speech_recognition_language="ja-JP"
 
     audio_config = speechsdk.audio.AudioConfig(use_default_microphone=True)
     speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config, audio_config=audio_config)
