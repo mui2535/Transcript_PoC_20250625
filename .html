@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音声ファイル文字起こしアプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .config-section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            border: 2px dashed #667eea;
+        }
+
+        .config-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .config-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .config-group {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .drop-zone {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .drop-zone::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .drop-zone:hover::before {
+            left: 100%;
+        }
+
+        .drop-zone.dragover {
+            border-color: #764ba2;
+            background: linear-gradient(135deg, rgba(118, 75, 162, 0.1), rgba(102, 126, 234, 0.1));
+            transform: scale(1.02);
+        }
+
+        .drop-zone-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .drop-zone i {
+            font-size: 4em;
+            color: #667eea;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .drop-zone h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .drop-zone p {
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-info {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 5px solid #667eea;
+        }
+
+        .file-info h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .process-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .process-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .process-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            margin-top: 40px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 15px;
+            border: 2px solid #667eea;
+        }
+
+        .results h3 {
+            color: #667eea;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+            text-align: center;
+        }
+
+        .speaker-segment {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #667eea;
+        }
+
+        .speaker-label {
+            font-weight: bold;
+            color: #764ba2;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .timestamp {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+
+        .speech-text {
+            line-height: 1.6;
+            color: #333;
+            font-size: 1.05em;
+        }
+
+        .error {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #dc3545;
+        }
+
+        .copy-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .config-row {
+                flex-direction: column;
+            }
+            
+            .drop-zone {
+                padding: 40px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 音声ファイル文字起こしアプリ</h1>
+        
+        <div class="config-section">
+            <h2>⚙️ 音声認識設定</h2>
+            <div class="config-row">
+                <div class="config-group">
+                    <label for="language">認識言語:</label>
+                    <select id="language">
+                        <option value="ja-JP">日本語</option>
+                        <option value="en-US">英語（米国）</option>
+                        <option value="en-GB">英語（英国）</option>
+                        <option value="zh-CN">中国語（簡体字）</option>
+                        <option value="ko-KR">韓国語</option>
+                    </select>
+                </div>
+                <div class="config-group">
+                    <label for="maxSpeakers">最大話者数:</label>
+                    <select id="maxSpeakers">
+                        <option value="2">2人</option>
+                        <option value="3">3人</option>
+                        <option value="4">4人</option>
+                        <option value="5">5人</option>
+                        <option value="6">6人</option>
+                    </select>
+                </div>
+            </div>
+            <div class="config-row">
+                <div class="config-group">
+                    <label for="apiUrl">API URL:</label>
+                    <input type="text" id="apiUrl" value="http://localhost:5000" placeholder="バックエンドAPIのURL">
+                </div>
+            </div>
+        </div>
+
+        <div class="drop-zone" id="dropZone">
+            <div class="drop-zone-content">
+                <i>📁</i>
+                <h3>音声ファイルをドラッグ&ドロップ</h3>
+                <p>または<strong>クリック</strong>してファイルを選択<br>
+                対応形式: MP3, M4A, WAV, FLAC<br>
+                最大ファイルサイズ: 100MB</p>
+            </div>
+        </div>
+
+        <input type="file" id="fileInput" class="file-input" accept=".mp3,.m4a,.wav,.flac">
+
+        <div id="fileInfo" class="file-info" style="display: none;">
+            <h4>📄 選択されたファイル</h4>
+            <div id="fileDetails"></div>
+        </div>
+
+        <button id="processBtn" class="process-btn" disabled>
+            🚀 音声認識を開始
+        </button>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>音声ファイルを処理中です...<br>話者認識とテキスト化を実行しています</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="results" class="results" style="display: none;">
+            <h3>📝 文字起こし結果</h3>
+            <div id="transcriptionResults"></div>
+            <button id="copyBtn" class="copy-btn">📋 全文をコピー</button>
+        </div>
+    </div>
+
+    <script>
+        class SpeechToTextApp {
+            constructor() {
+                this.selectedFile = null;
+                this.initializeElements();
+                this.setupEventListeners();
+            }
+
+            initializeElements() {
+                this.dropZone = document.getElementById('dropZone');
+                this.fileInput = document.getElementById('fileInput');
+                this.fileInfo = document.getElementById('fileInfo');
+                this.fileDetails = document.getElementById('fileDetails');
+                this.processBtn = document.getElementById('processBtn');
+                this.loading = document.getElementById('loading');
+                this.error = document.getElementById('error');
+                this.results = document.getElementById('results');
+                this.transcriptionResults = document.getElementById('transcriptionResults');
+                this.copyBtn = document.getElementById('copyBtn');
+                
+                // 設定要素
+                this.language = document.getElementById('language');
+                this.maxSpeakers = document.getElementById('maxSpeakers');
+                this.apiUrl = document.getElementById('apiUrl');
+            }
+
+            setupEventListeners() {
+                // ドラッグ&ドロップイベント
+                this.dropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    this.dropZone.classList.add('dragover');
+                });
+
+                this.dropZone.addEventListener('dragleave', () => {
+                    this.dropZone.classList.remove('dragover');
+                });
+
+                this.dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    this.dropZone.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.handleFileSelect(files[0]);
+                    }
+                });
+
+                // クリックでファイル選択
+                this.dropZone.addEventListener('click', () => {
+                    this.fileInput.click();
+                });
+
+                this.fileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        this.handleFileSelect(e.target.files[0]);
+                    }
+                });
+
+                // 処理ボタン
+                this.processBtn.addEventListener('click', () => {
+                    this.processAudioFile();
+                });
+
+                // コピーボタン
+                this.copyBtn.addEventListener('click', () => {
+                    this.copyToClipboard();
+                });
+            }
+
+            handleFileSelect(file) {
+                // ファイルタイプの検証
+                const allowedTypes = ['audio/mp3', 'audio/mpeg', 'audio/mp4', 'audio/m4a', 'audio/wav', 'audio/flac'];
+                const allowedExtensions = ['.mp3', '.m4a', '.wav', '.flac'];
+                const fileName = file.name.toLowerCase();
+                const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+                if (!allowedTypes.includes(file.type) && !hasValidExtension) {
+                    this.showError('対応していないファイル形式です。MP3, M4A, WAV, FLACファイルを選択してください。');
+                    return;
+                }
+
+                // ファイルサイズの検証（100MB制限）
+                const maxSize = 100 * 1024 * 1024; // 100MB
+                if (file.size > maxSize) {
+                    this.showError('ファイルサイズが大きすぎます。100MB以下のファイルを選択してください。');
+                    return;
+                }
+
+                this.selectedFile = file;
+                this.showFileInfo(file);
+                this.processBtn.disabled = false;
+                this.hideError();
+            }
+
+            showFileInfo(file) {
+                const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+                this.fileDetails.innerHTML = `
+                    <p><strong>ファイル名:</strong> ${file.name}</p>
+                    <p><strong>サイズ:</strong> ${fileSize} MB</p>
+                    <p><strong>形式:</strong> ${file.type || 'audio'}</p>
+                `;
+                this.fileInfo.style.display = 'block';
+            }
+
+            async processAudioFile() {
+                if (!this.selectedFile) {
+                    this.showError('ファイルが選択されていません。');
+                    return;
+                }
+
+                if (!this.apiUrl.value) {
+                    this.showError('API URLを入力してください。');
+                    return;
+                }
+
+                this.processBtn.disabled = true;
+                this.loading.style.display = 'block';
+                this.results.style.display = 'none';
+                this.hideError();
+
+                try {
+                    await this.callBackendAPI();
+                } catch (error) {
+                    this.showError(`処理中にエラーが発生しました: ${error.message}`);
+                } finally {
+                    this.loading.style.display = 'none';
+                    this.processBtn.disabled = false;
+                }
+            }
+
+            async callBackendAPI() {
+                const formData = new FormData();
+                formData.append('audio_file', this.selectedFile);
+                formData.append('language', this.language.value);
+                formData.append('max_speakers', this.maxSpeakers.value);
+
+                try {
+                    const response = await fetch(`${this.apiUrl.value}/transcribe`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.displayResults(result.results);
+                        if (result.note) {
+                            this.showInfo(result.note);
+                        }
+                    } else {
+                        throw new Error(result.error || '不明なエラーが発生しました');
+                    }
+                } catch (error) {
+                    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                        throw new Error('バックエンドサーバーに接続できません。サーバーが起動しているか確認してください。');
+                    }
+                    throw error;
+                }
+            }zureSpeechAPI();
+                } catch (error) {
+                    this.showError(`処理中にエラーが発生しました: ${error.message}`);
+                } finally {
+                    this.loading.style.display = 'none';
+                    this.processBtn.disabled = false;
+                }
+            }
+
+            async simulateAzureSpeechAPI() {
+                // 実際の実装では、ここでAzure Speech Service APIを呼び出します
+                // このデモでは、シミュレーションデータを使用します
+                
+                await new Promise(resolve => setTimeout(resolve, 3000)); // 3秒待機
+
+                // シミュレーションデータ
+                const mockResults = [
+                    {
+                        speaker: "話者1",
+                        startTime: "00:00:02",
+                        endTime: "00:00:08",
+                        text: "こんにちは、今日は会議にお集まりいただき、ありがとうございます。"
+                    },
+                    {
+                        speaker: "話者2", 
+                        startTime: "00:00:09",
+                        endTime: "00:00:15",
+                        text: "こちらこそ、よろしくお願いします。早速、議題について話し合いましょう。"
+                    },
+                    {
+                        speaker: "話者1",
+                        startTime: "00:00:16",
+                        endTime: "00:00:25",
+                        text: "はい。まず最初の議題は、来月のプロジェクトの進捗状況についてです。"
+                    },
+                    {
+                        speaker: "話者2",
+                        startTime: "00:00:26",
+                        endTime: "00:00:35",
+                        text: "プロジェクトの進捗ですが、現在全体の約70%が完了している状況です。"
+                    }
+                ];
+
+                this.displayResults(mockResults);
+            }
+
+            displayResults(results) {
+                this.transcriptionResults.innerHTML = '';
+                
+                results.forEach((segment, index) => {
+                    const segmentDiv = document.createElement('div');
+                    segmentDiv.className = 'speaker-segment';
+                    segmentDiv.style.borderLeftColor = this.getSpeakerColor(segment.speaker);
+                    
+                    segmentDiv.innerHTML = `
+                        <div class="speaker-label">${segment.speaker}</div>
+                        <div class="timestamp">${segment.startTime} - ${segment.endTime}</div>
+                        <div class="speech-text">${segment.text}</div>
+                    `;
+                    
+                    this.transcriptionResults.appendChild(segmentDiv);
+                });
+
+                this.results.style.display = 'block';
+            }
+
+            getSpeakerColor(speaker) {
+                const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+                const speakerIndex = parseInt(speaker.replace('話者', '')) - 1;
+                return colors[speakerIndex % colors.length];
+            }
+
+            copyToClipboard() {
+                const segments = this.transcriptionResults.querySelectorAll('.speaker-segment');
+                let fullText = '';
+                
+                segments.forEach(segment => {
+                    const speaker = segment.querySelector('.speaker-label').textContent;
+                    const timestamp = segment.querySelector('.timestamp').textContent;
+                    const text = segment.querySelector('.speech-text').textContent;
+                    fullText += `${speaker} (${timestamp}):\n${text}\n\n`;
+                });
+
+                navigator.clipboard.writeText(fullText).then(() => {
+                    this.copyBtn.textContent = '✅ コピー完了';
+                    setTimeout(() => {
+                        this.copyBtn.textContent = '📋 全文をコピー';
+                    }, 2000);
+                });
+            }
+
+            showError(message) {
+                this.error.textContent = message;
+                this.error.style.display = 'block';
+            }
+
+            hideError() {
+                this.error.style.display = 'none';
+            }
+        }
+
+        // アプリケーション初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            new SpeechToTextApp();
+        });
+    </script>
+</body>
+</html>
